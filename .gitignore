@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+# written at runtime
+debug.log
+debug_vorher.log
+stats.log
+commands.txt

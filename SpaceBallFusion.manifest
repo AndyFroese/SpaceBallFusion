@@ -1,0 +1,13 @@
+{
+	"autodeskProduct": "Fusion",
+	"type": "addin",
+	"id": "6d1c1f0e-7a52-4b7e-9b1e-5ba11c500001",
+	"author": "",
+	"description": {
+		"": "SpaceBall 5000 USB Navigation fuer Fusion (ohne 3DxWare)"
+	},
+	"version": "1.0.0",
+	"runOnStartup": true,
+	"supportedOS": "windows",
+	"editEnabled": true
+}

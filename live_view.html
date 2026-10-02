@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SpaceBall Sensoren</title>
+<style>
+  :root {
+    --bg: #f4f5f7; --card: #ffffff; --text: #1d2330; --muted: #6b7385; --line: #e2e5ea;
+    --track: #eceef2; --trans: #2f7fd8; --rot: #d9822b; --on: #2fa36b; --warn: #c94a4a;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #15181e; --card: #1e232b; --text: #e6e9ef; --muted: #8b93a3; --line: #2c323c;
+            --track: #2a3039; --trans: #5aa2f0; --rot: #f0a35a; --on: #43c486; --warn: #e06a6a; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+         font: 15px/1.4 "Segoe UI", system-ui, sans-serif; }
+  main { max-width: 1100px; margin: 0 auto; padding: 20px 16px 40px; }
+  header { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+  h1 { font-size: 22px; margin: 0; }
+  .status { color: var(--muted); font-size: 14px; }
+  .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: var(--warn); margin-right: 6px; }
+  .dot.ok { background: var(--on); }
+  .grid { display: grid; grid-template-columns: 300px 1fr; gap: 16px; margin-top: 16px; }
+  @media (max-width: 800px) { .grid { grid-template-columns: 1fr; } }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 16px; }
+  .card h2 { font-size: 15px; margin: 0 0 12px; display: flex; justify-content: space-between; }
+  .card h2 small { color: var(--muted); font-weight: normal; }
+  svg { width: 100%; height: auto; display: block; }
+  .axis { display: grid; grid-template-columns: 140px 1fr 56px; align-items: center; gap: 10px; padding: 7px 0;
+          border-bottom: 1px solid var(--line); }
+  .axis:last-child { border-bottom: 0; }
+  .axis .name b { display: block; }
+  .axis .name span { color: var(--muted); font-size: 12.5px; }
+  .axis.dom .name b::after { content: " ● stärkste"; color: var(--on); font-size: 11px; font-weight: normal; }
+  .bar { position: relative; height: 18px; background: var(--track); border-radius: 4px; overflow: hidden; }
+  .bar::before { content: ""; position: absolute; left: 50%; top: 0; bottom: 0; width: 1px; background: var(--muted); opacity: .5; }
+  .fill { position: absolute; top: 0; bottom: 0; left: 50%; width: 0; border-radius: 3px; }
+  .t .fill { background: var(--trans); } .r .fill { background: var(--rot); }
+  .peak { position: absolute; top: -2px; bottom: -2px; width: 2px; background: var(--text); opacity: .45; left: 50%; }
+  .val { text-align: right; font-variant-numeric: tabular-nums; font-size: 14px; }
+  .share { margin-top: 10px; display: flex; height: 10px; border-radius: 5px; overflow: hidden; background: var(--track); }
+  .share div { height: 100%; transition: width .08s; }
+  .legend { color: var(--muted); font-size: 12.5px; margin-top: 6px; }
+  .buttons { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; }
+  @media (max-width: 500px) { .buttons { grid-template-columns: repeat(4, 1fr); } }
+  .btn { border: 1px solid var(--line); border-radius: 8px; padding: 8px 4px; text-align: center; background: var(--track);
+         transition: background .05s; }
+  .btn b { display: block; font-size: 16px; }
+  .btn span { font-size: 11.5px; color: var(--muted); }
+  .btn.on { background: var(--on); color: #fff; border-color: var(--on); }
+  .btn.on span { color: #fff; }
+  button.reset { margin-top: 12px; padding: 6px 12px; border-radius: 6px; border: 1px solid var(--line);
+                 background: var(--card); color: var(--text); cursor: pointer; font: inherit; font-size: 13px; }
+  .full { grid-column: 1 / -1; }
+  .hint { color: var(--muted); font-size: 13px; margin-top: 8px; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>SpaceBall 5000 – Sensoren live</h1>
+    <div class="status"><span class="dot" id="dot"></span><span id="status">verbinde …</span></div>
+  </header>
+
+  <div class="grid">
+    <div class="card">
+      <h2>Kugel <small>Draufsicht</small></h2>
+      <svg viewBox="-110 -110 220 220" aria-label="Kugel-Visualisierung">
+        <circle r="100" fill="none" stroke="var(--line)" stroke-dasharray="3 4"/>
+        <line x1="-100" y1="0" x2="100" y2="0" stroke="var(--line)"/>
+        <line x1="0" y1="-100" x2="0" y2="100" stroke="var(--line)"/>
+        <!-- spin ring (Rz) -->
+        <path id="spinArc" fill="none" stroke="var(--rot)" stroke-width="7" stroke-linecap="round"/>
+        <g id="ball">
+          <circle id="ballC" r="42" fill="var(--trans)" opacity=".22" stroke="var(--trans)" stroke-width="2"/>
+          <!-- tilt (Rx) / roll (Ry) shown as a shifted highlight -->
+          <circle id="tiltDot" r="9" fill="var(--rot)"/>
+        </g>
+        <text x="0" y="-104" text-anchor="middle" font-size="9" fill="var(--muted)">hinten</text>
+        <text x="0" y="110" text-anchor="middle" font-size="9" fill="var(--muted)">vorne (zu dir)</text>
+      </svg>
+      <div class="legend">
+        Blauer Kreis = Verschieben (Position) und Drücken/Ziehen (Größe).<br>
+        Oranger Punkt = Kippen/Rollen, oranger Bogen = Drehen um die Hochachse.
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>6 Achsen <small>Modus: <b id="mode">–</b></small></h2>
+      <div id="axes"></div>
+      <div class="share" id="share"></div>
+      <div class="legend">Anteil jeder Achse an der Gesamtbewegung. Viele Farben gleichzeitig = Achsen bewegen sich mit.</div>
+      <button class="reset" id="reset">Spitzenwerte zurücksetzen</button>
+    </div>
+
+    <div class="card full">
+      <h2>12 Tasten <small>Funktion laut Add-in-Einstellungen</small></h2>
+      <div class="buttons" id="buttons"></div>
+    </div>
+  </div>
+  <p class="hint">Die Ansicht liest die Kugel parallel zu Fusion mit, beides funktioniert gleichzeitig.</p>
+</main>
+
+<script>
+const AXES = [
+  { key: 'X',  cls: 't', name: 'X – links/rechts',   fn: 'Verschieben links/rechts' },
+  { key: 'Y',  cls: 't', name: 'Y – vor/zurück',     fn: 'Zoomen' },
+  { key: 'Z',  cls: 't', name: 'Z – ziehen/drücken', fn: 'Verschieben hoch/runter' },
+  { key: 'Rx', cls: 'r', name: 'Rx – kippen vor/zurück', fn: 'Kippen' },
+  { key: 'Ry', cls: 'r', name: 'Ry – kippen seitlich',   fn: 'Rollen' },
+  { key: 'Rz', cls: 'r', name: 'Rz – drehen',            fn: 'Drehen um Hochachse' },
+];
+const SHARE_COLORS = ['#2f7fd8', '#6aa8ea', '#a5cbf3', '#d9822b', '#eaa766', '#f3c99c'];
+const ACTION_NAMES = { none: '–', fit: 'Einpassen', home: 'Startansicht', iso: 'Iso', front: 'Vorne',
+  back: 'Hinten', top: 'Oben', bottom: 'Unten', left: 'Links', right: 'Rechts',
+  level: 'Horizont gerade', fine_toggle: 'Feinmodus', mode_next: 'Modus ▶', mode_prev: '◀ Modus' };
+const PL = 'Verschieben links/rechts', PU = 'Verschieben hoch/runter', ZM = 'Zoomen', KI = 'Kippen',
+      RO = 'Rollen', DR = 'Drehen um Hochachse', NO = '– (aus)';
+const MODES = {
+  meine:             ['1. Meine Einstellung',  [PL, PU, NO, KI, ZM, DR]],
+  objekt_frei:       ['2. Objekt frei',        [PL, ZM, PU, KI, RO, DR]],
+  drehteller:        ['3. Drehteller',         [PL, ZM, PU, KI, NO, DR]],
+  drehteller_zoom_z: ['4. Drehteller + Zoom durch Ziehen/Drücken', [PL, PU, ZM, KI, NO, DR]],
+  kamera:            ['5. Kamera bewegen',     [PL + ' (umgekehrt)', ZM + ' (umgekehrt)', PU + ' (umgekehrt)', KI + ' (umgekehrt)', RO + ' (umgekehrt)', DR + ' (umgekehrt)']],
+  joystick:          ['6. Joystick',           [PL, ZM, PU, KI, DR, NO]],
+  drehteller_mitte:  ['7. Drehteller um Modellmitte', [PL, ZM, PU, KI, NO, DR]],
+  nur_drehen:        ['8. Nur Drehen',         [NO, NO, NO, KI, NO, DR]],
+  nur_verschieben:   ['9. Nur Verschieben + Zoom', [PL, ZM, PU, NO, NO, NO]],
+  flug:              ['10. Flug',              ['seitwärts fliegen', 'vorwärts/rückwärts fliegen', 'hoch/runter fliegen', 'hoch/runter schauen', NO, 'links/rechts schauen']],
+};
+const FN_NAMES = { none: NO, pan_x: PL, pan_y: PU, zoom: ZM, tilt: KI, spin: DR, roll: RO };
+const FULL = 350;
+
+const axesEl = document.getElementById('axes');
+AXES.forEach((a, i) => {
+  axesEl.insertAdjacentHTML('beforeend',
+    `<div class="axis ${a.cls}" id="ax${i}"><div class="name"><b>${a.name}</b><span>Fusion: ${a.fn}</span></div>
+     <div class="bar"><div class="fill"></div><div class="peak pmin"></div><div class="peak pmax"></div></div>
+     <div class="val">0</div></div>`);
+});
+const shareEl = document.getElementById('share');
+SHARE_COLORS.forEach(c => shareEl.insertAdjacentHTML('beforeend', `<div style="background:${c};width:0"></div>`));
+const btnEl = document.getElementById('buttons');
+for (let b = 1; b <= 12; b++)
+  btnEl.insertAdjacentHTML('beforeend', `<div class="btn" id="b${b}"><b>${b}</b><span>–</span></div>`);
+
+let pmin = [0, 0, 0, 0, 0, 0], pmax = [0, 0, 0, 0, 0, 0];
+document.getElementById('reset').onclick = () => { pmin = [0,0,0,0,0,0]; pmax = [0,0,0,0,0,0]; };
+
+const pct = v => Math.max(-50, Math.min(50, v / FULL * 50));
+
+function loadConfig() {
+  fetch('/config').then(r => r.json()).then(cfg => {
+    const map = cfg.buttons || {};
+    for (let b = 1; b <= 12; b++)
+      document.querySelector(`#b${b} span`).textContent = ACTION_NAMES[map[b]] || map[b] || '–';
+    const mode = cfg.mode || 'objekt_frei';
+    let title, fns;
+    if (mode === 'benutzer') {
+      const am = cfg.axis_map || {};
+      title = '11. Benutzerdefiniert';
+      fns = ['tx', 'ty', 'tz', 'rx', 'ry', 'rz'].map(a => FN_NAMES[am[a] || 'none']);
+    } else {
+      [title, fns] = MODES[mode] || MODES.objekt_frei;
+    }
+    document.getElementById('mode').textContent = title;
+    fns.forEach((fn, i) => { document.querySelector(`#ax${i} .name span`).textContent = 'Fusion: ' + fn; });
+  }).catch(() => {});
+}
+loadConfig(); setInterval(loadConfig, 1000);
+
+function arc(r, deg) {  // arc from top, clockwise for positive
+  const a = Math.max(-170, Math.min(170, deg)) * Math.PI / 180;
+  const x = r * Math.sin(a), y = -r * Math.cos(a);
+  return `M 0 ${-r} A ${r} ${r} 0 ${Math.abs(deg) > 180 ? 1 : 0} ${deg >= 0 ? 1 : 0} ${x.toFixed(1)} ${y.toFixed(1)}`;
+}
+
+function render(s) {
+  document.getElementById('dot').className = 'dot' + (s.connected ? ' ok' : '');
+  document.getElementById('status').textContent = s.connected
+    ? `verbunden · ${s.rate} Messwerte/s` : 'SpaceBall nicht gefunden – eingesteckt?';
+  const ax = s.axes;
+  const mags = ax.map(Math.abs), total = mags.reduce((a, b) => a + b, 0);
+  const dom = total ? mags.indexOf(Math.max(...mags)) : -1;
+  ax.forEach((v, i) => {
+    pmin[i] = Math.min(pmin[i], v); pmax[i] = Math.max(pmax[i], v);
+    const row = document.getElementById('ax' + i), p = pct(v);
+    const fill = row.querySelector('.fill');
+    fill.style.left = (p < 0 ? 50 + p : 50) + '%'; fill.style.width = Math.abs(p) + '%';
+    row.querySelector('.pmin').style.left = (50 + pct(pmin[i])) + '%';
+    row.querySelector('.pmax').style.left = (50 + pct(pmax[i])) + '%';
+    row.querySelector('.val').textContent = v;
+    row.classList.toggle('dom', i === dom);
+    shareEl.children[i].style.width = total ? (mags[i] / total * 100) + '%' : '0';
+  });
+  // ball: X/Z move it, Y changes size; Rx/Ry move the orange dot; Rz draws the spin arc
+  const [tx, ty, tz, rx, ry, rz] = ax.map(v => v / FULL);
+  document.getElementById('ball').setAttribute('transform', `translate(${tx * 45} ${-tz * 45})`);
+  document.getElementById('ballC').setAttribute('r', Math.max(15, 42 + ty * 18));
+  document.getElementById('tiltDot').setAttribute('cx', ry * 32);
+  document.getElementById('tiltDot').setAttribute('cy', -rx * 32);
+  document.getElementById('spinArc').setAttribute('d', Math.abs(rz) > 0.02 ? arc(78, rz * 170) : '');
+  for (let b = 1; b <= 12; b++)
+    document.getElementById('b' + b).classList.toggle('on', !!(s.buttons & (1 << (b - 1))));
+}
+
+const es = new EventSource('/events');
+es.onmessage = e => render(JSON.parse(e.data));
+es.onerror = () => { document.getElementById('status').textContent = 'Verbindung zum Live-Programm verloren'; };
+</script>
+</body>
+</html>
