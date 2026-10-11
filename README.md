@@ -41,3 +41,7 @@ Dann <http://localhost:8765> im Browser öffnen. Funktioniert parallel zu Fusion
 | `config.json` | Gespeicherte Einstellungen |
 | `fusion_actions.json` | Fusion-Befehle, die auf Tasten gelegt werden können |
 | `live_view.py` / `live_view.html` | Live-Ansicht der Sensoren |
+
+## Lizenz
+
+[MIT](LICENSE) – frei nutzbar, auch für eigene Projekte, solange der Lizenzhinweis erhalten bleibt.
